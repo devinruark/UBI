@@ -1,0 +1,60 @@
+import difflib
+
+def normalize_address(address, designation_mapping):
+    # Replace abbreviations with full forms or vice versa
+    for key, value in designation_mapping.items():
+        address = address.replace(value, key)
+    return address
+
+def to_ups_format(address):
+    # Add UPS-specific formatting rules
+    # Example: Assuming that UPS addresses have "UPS" as a prefix
+    return f"UPS {address}"
+
+def compress_addresses(list1, list2):
+    merged_list = []
+
+    for address1 in list1:
+        normalized1 = normalize_address(address1, designation_mapping)
+        ups_formatted1 = to_ups_format(normalized1)
+
+        match_found = False
+        for address2 in list2:
+            normalized2 = normalize_address(address2, designation_mapping)
+
+            # Using SequenceMatcher to compare similarity
+            similarity_ratio = difflib.SequenceMatcher(None, normalized1, normalized2).ratio()
+
+            # Set a threshold for similarity (adjust as needed)
+            if similarity_ratio > 0.8:
+                match_found = True
+                ups_formatted2 = to_ups_format(normalized2)
+                merged_list.append(ups_formatted1 if len(address1) < len(address2) else ups_formatted2)
+                break
+
+        if not match_found:
+            merged_list.append(ups_formatted1)
+
+    # Add the unique addresses from list2
+    for address2 in list2:
+        normalized2 = normalize_address(address2, designation_mapping)
+
+        match_found = any(
+            difflib.SequenceMatcher(None, normalized2, merged_address).ratio() > 0.8
+            for merged_address in merged_list
+        )
+
+        if not match_found:
+            ups_formatted2 = to_ups_format(normalized2)
+            merged_list.append(ups_formatted2)
+
+    return merged_list
+
+# Example usage
+list1 = ["123 Main St", "456 Oak Ln", "789 Pine Rd"]
+list2 = ["123 Main Street", "456 Oak Lane", "789 Pine Road"]
+
+designation_mapping = {"St": "Street", "Ln": "Lane", "Rd": "Road"}
+
+merged_addresses = compress_addresses(list1, list2)
+print(merged_addresses)
