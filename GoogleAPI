@@ -1,0 +1,56 @@
+import pandas as pd
+import requests
+
+# Function to validate and correct addresses using the Google Maps Geocoding API
+def validate_address(address):
+    api_key = 'A***************'  # Replace with your actual API key
+    base_url = 'https://maps.googleapis.com/maps/api/geocode/json'
+
+    # Make a request to the Google Maps Geocoding API
+    params = {
+        'address': address,
+        'key': api_key
+    }
+    response = requests.get(base_url, params=params)
+    data = response.json()
+
+    # Extract corrected information from the API response
+    if 'results' in data and data['results']:
+        corrected_address = data['results'][0]['formatted_address']
+        return corrected_address
+    else:
+        return None
+
+# Function to correct addresses using the Google Maps Geocoding API
+def correct_addresses(input_file, output_file):
+    # Load additional dataset into a pandas DataFrame with correct encoding
+    additional_df = pd.read_excel(input_file)
+
+    # Create a new column for corrected addresses
+    additional_df['Corrected Address'] = additional_df['Address']
+
+    print("Starting script...")
+
+    # Iterate through rows and correct addresses
+    print("Processing loop started...")
+    for index, row in additional_df.iterrows():
+        address = row['Address']
+        print(f"Processing address: {address}")
+
+        corrected_address = validate_address(address)
+        if corrected_address:
+            # Update the 'Corrected Address' column with the corrected version
+            additional_df.at[index, 'Corrected Address'] = corrected_address
+
+    print("Processing loop completed...")
+
+    # Save the updated DataFrame to a new Excel file
+    additional_df.to_excel(output_file, index=False)
+
+    print("Script completed.")
+
+if __name__ == "__main__":
+    input_file_path = '/Users/devin/Documents/PythonPG/JUSTIN_ADDRESSES.xlsx'  # Replace with your actual file path
+    output_file_path = '/Users/devin/Documents/PythonPG/JUSTIN_API_ADDRESSES.xlsx'  # Replace with your desired output file path
+
+    correct_addresses(input_file_path, output_file_path)
