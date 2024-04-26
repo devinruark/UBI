@@ -1,0 +1,69 @@
+import pandas as pd
+from datetime import datetime, timedelta
+
+# Define business hours
+business_hours_start = 7  # 7 AM
+business_hours_end = 17   # 5 PM
+business_days = [0, 1, 2, 3, 4]  # Monday to Friday (0 = Monday, 6 = Sunday)
+
+# Load Excel file
+excel_file_path = "/Users/devin/Documents/PythonPG/TXCT.xlsx"
+df = pd.read_excel(excel_file_path, parse_dates=['Open date', 'Close date'])
+
+# Convert Open date and Close date columns to datetime
+df['Open date'] = pd.to_datetime(df['Open date'])
+df['Close date'] = pd.to_datetime(df['Close date'])
+
+# Function to calculate adjusted hours
+def calculate_adj_hours(row):
+    open_date = row['Open date']
+    close_date = row['Close date']
+    total_hours = 0
+    
+    # Check if the job was completed on the same day
+    if open_date.date() == close_date.date():
+        # Calculate the difference in minutes
+        time_diff_minutes = (close_date - open_date).total_seconds() / 60
+        
+        # Check if the job was completed during business hours
+        if open_date.hour >= business_hours_start and close_date.hour < business_hours_end and close_date.weekday() in business_days:
+            adj_hours = max(0, time_diff_minutes / 60)  # Convert minutes to hours
+        else:
+            # Calculate the duration during business hours
+            duration_in_business_hours = min(business_hours_end - open_date.hour, time_diff_minutes / 60)
+            adj_hours = max(0, duration_in_business_hours)
+    else:
+        # Calculate the duration on each day the job spans
+        current_date = open_date
+        while current_date.date() <= close_date.date():
+            #2024-04-04 13:56:00	2024-04-05 08:37:00
+            if current_date.date() == open_date.date():
+                # Calculate duration for the first day
+                if current_date.weekday() in business_days:
+                    if current_date.hour >= business_hours_start:
+                        total_hours += min(business_hours_end - current_date.hour, (close_date - current_date).total_seconds() / 3600)
+            elif current_date.date() == close_date.date():
+                # Calculate duration for the last day
+                if current_date.weekday() in business_days:
+                    if current_date.hour < business_hours_end:
+                        total_hours += min(business_hours_end - business_hours_start, (close_date - current_date).total_seconds() / 3600)
+            else:
+                # Calculate duration for the days in between
+                if current_date.weekday() in business_days:
+                    total_hours += business_hours_end - business_hours_start
+            current_date += timedelta(days=1)
+        
+        adj_hours = max(0, total_hours)
+    
+    return adj_hours
+
+
+
+# Apply function to calculate adjusted hours and create new column
+df['ADJH'] = df.apply(calculate_adj_hours, axis=1)
+
+# Save the updated DataFrame to a new Excel file
+output_excel_file = "/Users/devin/Documents/PythonPG/TXCT_with_ADJH.xlsx"
+df.to_excel(output_excel_file, index=False)
+
+print("Adjusted hours calculated and saved to", output_excel_file)
